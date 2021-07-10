@@ -1,11 +1,11 @@
 mod utils;
 
 use js_sys::Math::random;
-
 use wasm_bindgen::prelude::*;
-use std::fmt;
-
 use fixedbitset::FixedBitSet;
+
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -21,6 +21,17 @@ pub struct Universe {
 }
 
 impl Universe {
+    pub fn get_cells_hash(&self) -> u64 {
+	let mut hasher = DefaultHasher::new();
+	self.cells.hash(&mut hasher);
+	hasher.finish()
+    }
+    pub fn set_cells(&mut self, cells: &[(u32, u32)]) {
+	for (row, col) in cells.iter().cloned() {
+	    let index = self.get_index(row, col);
+	    self.cells.set(index, true);
+	}
+    }
     fn get_index(&self, row: u32, col: u32) -> usize {
 	(row * self.width + col) as usize
     }
@@ -67,15 +78,21 @@ impl Universe {
 	}
 	self.cells = next_buffer;
     }
-    pub fn new() -> Universe {
-	let width = 64;
-	let height = 64;
-
+    pub fn new(width: u32, height: u32) -> Universe {
+	let size = (width * height) as usize;
+	let mut uni = Universe::new_blank(width, height);
+	
+	for i in 0..size {
+	    uni.cells.set(i, random() < 0.5);
+	}
+	uni
+    }
+    pub fn new_blank(width: u32, height: u32) -> Universe {
 	let size = (width * height) as usize;
 	let mut cells = FixedBitSet::with_capacity(size);
 
 	for i in 0..size {
-	    cells.set(i, random() < 0.5);
+	    cells.set(i, false);
 	}
 
 	Universe {
@@ -83,7 +100,8 @@ impl Universe {
 	    height,
 	    cells,
 	}
-    }    
+    }
+    
     pub fn width(&self) -> u32 {
         self.width
     }
